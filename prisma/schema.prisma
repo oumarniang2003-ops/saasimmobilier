@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MULTI-TENANT : chaque agence immobilière = 1 Agency
+// ============================================
+
+model Agency {
+  id           String        @id @default(cuid())
+  name         String
+  slug         String        @unique
+  email        String        @unique
+  phone        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  users        User[]
+  tenants      Tenant[]
+  leases       Lease[]
+  subscription Subscription?
+}
+
+model Subscription {
+  id               String    @id @default(cuid())
+  agency           Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  agencyId         String    @unique
+  plan             Plan      @default(STARTER)
+  status           SubStatus @default(TRIALING)
+  stripeCustomerId String?
+  stripeSubId      String?
+  currentPeriodEnd DateTime?
+  createdAt        DateTime  @default(now())
+}
+
+enum Plan {
+  STARTER  // jusqu'à 10 locataires suivis
+  PRO      // jusqu'à 50 locataires
+  AGENCY   // illimité, plusieurs agents
+}
+
+enum SubStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+// ============================================
+// UTILISATEURS (l'agent)
+// ============================================
+
+model User {
+  id           String   @id @default(cuid())
+  agency       Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  agencyId     String
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+// ============================================
+// LOCATAIRES
+// ============================================
+
+model Tenant {
+  id        String   @id @default(cuid())
+  agency    Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  agencyId  String
+  name      String
+  phone     String?
+  email     String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  leases    Lease[]
+
+  @@index([agencyId])
+}
+
+// ============================================
+// BAUX (contrat de location, volontairement léger : pas de fiche
+// "bien immobilier" séparée pour rester simple — le libellé du bien
+// est saisi directement sur le bail)
+// ============================================
+
+model Lease {
+  id            String        @id @default(cuid())
+  agency        Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  agencyId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId      String
+  propertyLabel String        // ex: "Appartement 3B, Almadies"
+  monthlyRent   Decimal       @db.Decimal(10, 2)
+  dueDay        Int           @default(5) // jour du mois où le loyer est dû
+  startDate     DateTime      @default(now())
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+
+  rentPayments  RentPayment[]
+
+  @@index([agencyId])
+  @@index([tenantId])
+}
+
+// ============================================
+// SUIVI MENSUEL DES LOYERS — le cœur de l'app
+// ============================================
+
+model RentPayment {
+  id              String        @id @default(cuid())
+  lease           Lease         @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  leaseId         String
+  month           String        // format "2026-08" : année-mois concerné
+  amountDue       Decimal       @db.Decimal(10, 2)
+  amountPaid      Decimal       @default(0.00) @db.Decimal(10, 2)
+  status          RentStatus    @default(PENDING)
+  dueDate         DateTime
+  paidAt          DateTime?
+  paymentMethod   String?       // CASH, TRANSFER, WAVE, ORANGE_MONEY, CARD (Stripe)...
+  stripeCheckoutId String?
+  createdAt       DateTime      @default(now())
+
+  @@unique([leaseId, month]) // un seul suivi par bail et par mois
+  @@index([leaseId])
+}
+
+enum RentStatus {
+  PENDING    // en attente, dans les délais
+  PAID       // payé intégralement
+  PARTIAL    // payé partiellement
+  OVERDUE    // en retard
+}

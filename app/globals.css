@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #1B2130;
+  --paper: #F7F6F3;
+  --brand: #2563EB;
+  --brand-dark: #1D4ED8;
+  --amber: #D97706;
+}
