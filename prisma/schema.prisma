@@ -22,6 +22,7 @@ model Agency {
 
   users        User[]
   tenants      Tenant[]
+  landlords    Landlord[]
   leases       Lease[]
   subscription Subscription?
 }
@@ -85,6 +86,25 @@ model Tenant {
 }
 
 // ============================================
+// BAILLEURS (propriétaires des biens gérés par l'agence)
+// ============================================
+
+model Landlord {
+  id        String   @id @default(cuid())
+  agency    Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  agencyId  String
+  name      String
+  phone     String?
+  email     String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  leases    Lease[]
+
+  @@index([agencyId])
+}
+
+// ============================================
 // BAUX (contrat de location, volontairement léger : pas de fiche
 // "bien immobilier" séparée pour rester simple — le libellé du bien
 // est saisi directement sur le bail)
@@ -96,6 +116,8 @@ model Lease {
   agencyId      String
   tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   tenantId      String
+  landlord      Landlord?     @relation(fields: [landlordId], references: [id])
+  landlordId    String?
   propertyLabel String        // ex: "Appartement 3B, Almadies"
   monthlyRent   Decimal       @db.Decimal(10, 2)
   dueDay        Int           @default(5) // jour du mois où le loyer est dû
@@ -107,6 +129,7 @@ model Lease {
 
   @@index([agencyId])
   @@index([tenantId])
+  @@index([landlordId])
 }
 
 // ============================================

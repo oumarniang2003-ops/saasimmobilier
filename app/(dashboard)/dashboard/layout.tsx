@@ -12,6 +12,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const links = [
     { href: "/dashboard/rent", label: "Loyers du mois" },
     { href: "/dashboard/tenants", label: "Locataires" },
+    { href: "/dashboard/landlords", label: "Bailleurs" },
+    { href: "/dashboard/import", label: "📥 Importer" },
     { href: "/dashboard/billing", label: "Mon abonnement" },
   ];
 
