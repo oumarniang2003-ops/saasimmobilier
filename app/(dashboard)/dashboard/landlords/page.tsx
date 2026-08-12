@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type Landlord = {
   id: string; name: string; phone: string | null; email: string | null;
@@ -54,15 +55,19 @@ export default function LandlordsPage() {
 
       <div className="bg-white rounded-xl border border-neutral-200 divide-y divide-neutral-100">
         {landlords.map((l) => (
-          <div key={l.id} className="px-4 py-3 flex justify-between items-center text-sm">
+          <Link
+            key={l.id}
+            href={`/dashboard/landlords/${l.id}`}
+            className="px-4 py-3 flex justify-between items-center text-sm hover:bg-neutral-50 transition-colors"
+          >
             <div>
               <p className="font-medium text-ink">{l.name}</p>
               <p className="text-xs text-neutral-500">{l.phone}</p>
             </div>
-            <span className="text-xs text-neutral-500">
-              {l.leases.length} bien{l.leases.length > 1 ? "s" : ""} géré{l.leases.length > 1 ? "s" : ""}
+            <span className="text-xs text-brand font-medium">
+              {l.leases.length} bien{l.leases.length > 1 ? "s" : ""} géré{l.leases.length > 1 ? "s" : ""} →
             </span>
-          </div>
+          </Link>
         ))}
         {landlords.length === 0 && (
           <p className="px-4 py-6 text-center text-neutral-500 text-sm">Aucun bailleur pour le moment.</p>
