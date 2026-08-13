@@ -21,7 +21,7 @@ export async function GET() {
     include: {
       leases: {
         where: { active: true },
-        include: { rentPayments: { where: { month } } },
+        include: { rentPayments: { where: { month } }, landlord: true },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -35,7 +35,13 @@ export async function GET() {
       name: t.name,
       phone: t.phone,
       email: t.email,
-      leases: t.leases,
+      leases: t.leases.map((l) => ({
+        id: l.id,
+        propertyLabel: l.propertyLabel,
+        monthlyRent: l.monthlyRent,
+        dueDay: l.dueDay,
+        landlordName: l.landlord?.name ?? null,
+      })),
       currentMonthStatus: rentPayment?.status ?? null, // null = pas de bail actif
     };
   });
@@ -51,10 +57,17 @@ export async function POST(req: Request) {
 
   const agencyId = (session as any).agencyId;
   const body = await req.json();
-  const { name, phone, email, propertyLabel, monthlyRent, dueDay } = body;
+  const { name, phone, email, propertyLabel, monthlyRent, dueDay, landlordId } = body;
 
   if (!name || !propertyLabel || !monthlyRent) {
     return NextResponse.json({ error: "Nom, bien et loyer mensuel requis" }, { status: 400 });
+  }
+
+  // Vérifie que le bailleur choisi (si précisé) appartient bien à cette agence
+  let validLandlordId: string | undefined;
+  if (landlordId) {
+    const landlord = await prisma.landlord.findFirst({ where: { id: landlordId, agencyId } });
+    validLandlordId = landlord?.id;
   }
 
   const tenant = await prisma.tenant.create({
@@ -69,6 +82,7 @@ export async function POST(req: Request) {
           propertyLabel,
           monthlyRent,
           dueDay: dueDay || 5,
+          landlordId: validLandlordId,
         },
       },
     },

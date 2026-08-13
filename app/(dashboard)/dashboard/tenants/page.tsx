@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 
 type Tenant = {
   id: string; name: string; phone: string | null; email: string | null;
-  leases: { id: string; propertyLabel: string; monthlyRent: number; dueDay: number }[];
+  leases: { id: string; propertyLabel: string; monthlyRent: number; dueDay: number; landlordName?: string | null }[];
   currentMonthStatus: "PENDING" | "PAID" | "PARTIAL" | "OVERDUE" | null;
 };
+
+type Landlord = { id: string; name: string };
 
 const statusStyle: Record<string, string> = {
   PENDING: "bg-neutral-100 text-neutral-600",
@@ -25,14 +27,16 @@ type Filter = "ALL" | "PAID" | "UNPAID";
 
 export default function TenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [landlords, setLandlords] = useState<Landlord[]>([]);
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<Filter>("ALL");
   const [form, setForm] = useState({
-    name: "", phone: "", email: "", propertyLabel: "", monthlyRent: 0, dueDay: 5,
+    name: "", phone: "", email: "", propertyLabel: "", monthlyRent: 0, dueDay: 5, landlordId: "",
   });
 
   function load() {
     fetch("/api/tenants").then((r) => r.json()).then(setTenants);
+    fetch("/api/landlords").then((r) => r.json()).then(setLandlords);
   }
   useEffect(load, []);
 
@@ -43,7 +47,7 @@ export default function TenantsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
     });
-    setForm({ name: "", phone: "", email: "", propertyLabel: "", monthlyRent: 0, dueDay: 5 });
+    setForm({ name: "", phone: "", email: "", propertyLabel: "", monthlyRent: 0, dueDay: 5, landlordId: "" });
     setOpen(false);
     load();
   }
@@ -81,6 +85,21 @@ export default function TenantsPage() {
             value={form.monthlyRent || ""} onChange={(e) => setForm({ ...form, monthlyRent: parseFloat(e.target.value) || 0 })} />
           <input type="number" min={1} max={28} placeholder="Jour d'échéance (ex: 5)" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
             value={form.dueDay} onChange={(e) => setForm({ ...form, dueDay: parseInt(e.target.value) || 5 })} />
+          <select
+            className="col-span-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            value={form.landlordId}
+            onChange={(e) => setForm({ ...form, landlordId: e.target.value })}
+          >
+            <option value="">Aucun bailleur associé (optionnel)</option>
+            {landlords.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+          {landlords.length === 0 && (
+            <p className="col-span-2 text-xs text-neutral-400 -mt-2">
+              Aucun bailleur enregistré pour l'instant — ajoutez-en un dans "Bailleurs" pour pouvoir l'associer ici.
+            </p>
+          )}
           <button type="submit" className="col-span-2 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold py-2">
             Enregistrer
           </button>
@@ -117,6 +136,9 @@ export default function TenantsPage() {
               <p className="text-xs text-neutral-500">
                 {t.leases[0]?.propertyLabel} {t.phone && `· ${t.phone}`}
               </p>
+              {t.leases[0]?.landlordName && (
+                <p className="text-xs text-neutral-400">Bailleur : {t.leases[0].landlordName}</p>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <span className="font-semibold text-ink">
